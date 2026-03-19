@@ -1,21 +1,46 @@
-//
-//  ContentView.swift
-//  WeeklyPlanner
-//
-//  Created by Funda Aker on 10.03.2026.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    
+    @State private var tasks: [Task] = TaskStorage.load()
+    
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        
+        TabView {
+            
+            HomeView(tasks: tasks)
+                .tabItem {
+                    Image(systemName: "house")
+                    Text("Ana Sayfa")
+                }
+
+            TasksView(tasks: $tasks)
+                .tabItem {
+                    Image(systemName: "checklist")
+                    Text("Görevler")
+                }
+
+            TodosView()
+                .tabItem {
+                    Image(systemName: "list.bullet")
+                    Text("Yapılacaklar")
+                }
+
+            GoalsView()
+                .tabItem {
+                    Label("Hedefler", systemImage: "target")
+                }
+
+            ReportView(tasks: tasks)
+                .tabItem {
+                    Image(systemName: "chart.pie")
+                    Text("Raporlar")
+                }
         }
-        .padding()
+        .onChange(of: tasks) {
+            TaskStorage.save(tasks)
+        }
+      
     }
 }
 
