@@ -10,6 +10,8 @@ struct TasksView: View {
     @State private var taskToDelete: Task?
     @State private var activeAlert: AlertType?
     @State private var draggedTask: Task?
+  
+    
 
     @State private var editingTaskIndex: Int?
 
@@ -25,7 +27,7 @@ struct TasksView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        
 
             List {
 
@@ -76,9 +78,12 @@ struct TasksView: View {
 
                                                         Image(systemName: i < task.completedHours ? "checkmark.circle.fill" : "circle")
                                                             .onTapGesture {
-
                                                                 if i < tasks[index].completedHours {
                                                                     tasks[index].completedHours -= 1
+                                                                  
+                                                                    if !tasks[index].completionDates.isEmpty {
+                                                                        tasks[index].completionDates.removeLast()
+                                                                    }
                                                                 } else if tasks[index].completedHours < tasks[index].totalHours {
 
                                                                     tasks[index].completedHours += 1
@@ -138,7 +143,7 @@ struct TasksView: View {
                                                             .buttonStyle(.borderless)
                                     }
 
-                                    // 🔥 EDIT PANEL
+                                    // edit panel
                                     if editingTaskIndex == index {
 
                                         VStack(spacing: 10) {
@@ -147,10 +152,22 @@ struct TasksView: View {
                                                 .textFieldStyle(.roundedBorder)
 
                                             Stepper(
-                                                "Saat: \(tasks[index].totalHours)",
-                                                value: $tasks[index].totalHours,
-                                                in: 1...12
-                                            )
+                                                                                            "Saat: \(tasks[index].totalHours)",
+                                                                                            value: $tasks[index].totalHours,
+                                                                                            in: 1...12
+                                                                                        )
+                                            .onChange(of: tasks[index].totalHours) {
+                                                                                            if tasks[index].completedHours > tasks[index].totalHours {
+                                                                                                tasks[index].completedHours = tasks[index].totalHours
+                                                                                            }
+                                                                                        }
+                                            
+                                            Picker("Gün", selection: $tasks[index].day) {
+                                                                         ForEach(days, id: \.self) { day in
+                                                                             Text(day).tag(day)
+                                                                         }
+                                                                     }
+                                                                     .pickerStyle(.menu)
 
                                             Button("Kapat") {
                                                 withAnimation {
@@ -164,13 +181,13 @@ struct TasksView: View {
                                     }
                                 }
 
-                                // 🔥 DRAG
+                                // drag
                                 .onDrag {
                                     draggedTask = task
                                     return NSItemProvider(object: task.id.uuidString as NSString)
                                 }
 
-                                // 🔥 DROP
+                                // drop
                                 .onDrop(of: ["public.text"], isTargeted: nil) { _ in
 
                                     if let dragged = draggedTask,
@@ -244,7 +261,7 @@ struct TasksView: View {
             }
         }
     }
-}
+
 
 enum AlertType: Identifiable {
     case success
