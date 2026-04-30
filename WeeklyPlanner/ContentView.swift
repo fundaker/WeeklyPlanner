@@ -13,12 +13,14 @@ struct ContentView: View {
                     Image(systemName: "house")
                     Text("Ana Sayfa")
                 }
-
-            TasksView(tasks: $tasks)
-                .tabItem {
-                    Image(systemName: "checklist")
-                    Text("Görevler")
-                }
+            NavigationStack{
+                TasksView(tasks: $tasks)
+            }
+                    .tabItem {
+                        Image(systemName: "checklist")
+                        Text("Görevler")
+                    }
+            
 
             TodosView()
                 .tabItem {
@@ -32,6 +34,7 @@ struct ContentView: View {
                 }
 
             ReportView(tasks: tasks)
+                .id(tasks.map { "\($0.id)\($0.completedHours)\($0.totalHours)" }.joined())
                 .tabItem {
                     Image(systemName: "chart.pie")
                     Text("Raporlar")
@@ -40,7 +43,6 @@ struct ContentView: View {
         .onChange(of: tasks) {
             TaskStorage.save(tasks)
         }
-      
     }
 }
 

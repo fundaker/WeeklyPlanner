@@ -10,7 +10,7 @@ struct ReportView: View {
     @State private var selectedWeekOffset = 0
     @State private var selectedMonthOffset = 0
 
-    // 📅 HAFTA ARALIĞI
+    // Hafta araligi
     func weekRange(offset: Int) -> (start: Date, end: Date) {
         let calendar = Calendar.current
         let now = Date()
@@ -35,7 +35,8 @@ struct ReportView: View {
         return (start, end)
     }
 
-    // 📊 HAFTALIK VERİ
+
+   //Haftalik veri
     var weeklyReportData: [String: Int] {
 
         let range = weekRange(offset: selectedWeekOffset)
@@ -88,7 +89,7 @@ struct ReportView: View {
         return formatter.string(from: range.start)
     }
 
-    // 🗓 HAFTA BAŞLIĞI
+    // hafta basligi
     func weekTitle() -> String {
         let range = weekRange(offset: selectedWeekOffset)
 
@@ -100,11 +101,11 @@ struct ReportView: View {
 
     var body: some View {
 
-        NavigationStack {
+ 
 
             VStack {
 
-                // 🔥 SEGMENTED BAR
+                
                 Picker("Rapor Türü", selection: $selectedReportType) {
                     ForEach(ReportType.allCases, id: \.self) { type in
                         Text(type.rawValue)
@@ -113,7 +114,7 @@ struct ReportView: View {
                 .pickerStyle(.segmented)
                 .padding()
 
-                // 📅 HAFTA SEÇİCİ
+                // hafta secici
                 if selectedReportType == .weekly {
                     HStack {
 
@@ -157,7 +158,7 @@ struct ReportView: View {
                     }
                     .padding(.horizontal)
                 }
-                // 📊 CHART
+               
                 if selectedReportType == .weekly {
 
                     Chart {
@@ -236,9 +237,7 @@ struct ReportView: View {
 
     }
 
-}
 
-// ✅ ENUM
 enum ReportType: String, CaseIterable {
     case weekly = "Haftalık"
     case monthly = "Aylık"
