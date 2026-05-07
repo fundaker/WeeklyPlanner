@@ -13,14 +13,12 @@ struct ContentView: View {
                     Image(systemName: "house")
                     Text("Ana Sayfa")
                 }
-            NavigationStack{
-                TasksView(tasks: $tasks)
-            }
-                    .tabItem {
-                        Image(systemName: "checklist")
-                        Text("Görevler")
-                    }
-            
+
+            TasksView(tasks: $tasks)
+                .tabItem {
+                    Image(systemName: "checklist")
+                    Text("Görevler")
+                }
 
             TodosView()
                 .tabItem {
@@ -31,6 +29,11 @@ struct ContentView: View {
             GoalsView()
                 .tabItem {
                     Label("Hedefler", systemImage: "target")
+                }
+
+            HabitsView()
+                .tabItem {
+                    Label("Alışkanlıklar", systemImage: "checkmark.seal")
                 }
 
             ReportView(tasks: tasks)
