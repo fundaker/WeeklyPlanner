@@ -1,140 +1,284 @@
-//
-//  GoalsView.swift
-//  WeeklyPlanner
-//
-//  Created by Funda Aker on 13.03.2026.
-//
-
 import SwiftUI
 
 struct GoalsView: View {
-
-        @State private var goals: [Goal] = GoalStorage.load()
-        @State private var selectedType: GoalType = .longTerm
-        @State private var showingAddGoal = false
-        @State private var goalToDelete: Goal?
-        @State private var showDeleteAlert = false
-        @State private var goalToEdit: Goal?
-    
+    @State private var goals: [Goal] = GoalStorage.load()
+    @State private var selectedType: GoalType = .midTerm
+    @State private var showingAddGoal = false
+    @State private var goalToDelete: Goal?
+    @State private var showDeleteAlert = false
+    @State private var goalToEdit: Goal?
 
     func deleteGoal(goal: Goal) {
         goals.removeAll { $0.id == goal.id }
+        GoalStorage.save(goals)
     }
-    
+
     var filteredGoals: [Goal] {
-        goals.filter { $0.type == selectedType }
+        goals
+            .filter { $0.type == selectedType }
+            .sorted { $0.deadline < $1.deadline }
     }
 
     var body: some View {
-
         NavigationStack {
+            ZStack {
+                Color(.systemGroupedBackground).ignoresSafeArea()
 
-            VStack {
-
-                Picker("Hedef Türü", selection: $selectedType) {
-                    ForEach(GoalType.allCases, id: \.self) { type in
-                        Text(type.rawValue)
+                VStack(spacing: 0) {
+                    // Segment picker
+                    Picker("Hedef Türü", selection: $selectedType) {
+                        ForEach(GoalType.allCases, id: \.self) { type in
+                            Text("\(type.icon) \(type.rawValue)").tag(type)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .padding()
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
 
-                List {
-
-                    ForEach(filteredGoals) { goal in
-
-                        VStack(alignment: .leading) {
-
-                            Text(goal.title)
+                    if filteredGoals.isEmpty {
+                        Spacer()
+                        VStack(spacing: 12) {
+                            Text(selectedType.icon).font(.system(size: 48))
+                            Text("Henüz \(selectedType.rawValue.lowercased()) hedef yok")
                                 .font(.headline)
-
-                            Text(goal.deadline.formatted(date: .long, time: .omitted))
-                                .font(.caption)
-                                .foregroundColor(.gray)
-
+                            Text("+ butonuyla yeni hedef ekle")
+                                .font(.caption).foregroundColor(.secondary)
                         }
-
-                        .swipeActions {
-
-                            Button(role: .destructive) {
-
-                                goalToDelete = goal
-                                showDeleteAlert = true
-
-                            } label: {
-                                Label("Sil", systemImage: "trash")
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 14) {
+                                ForEach(filteredGoals) { goal in
+                                    GoalCardView(
+                                        goal: goal,
+                                        onEdit: { goalToEdit = goal },
+                                        onDelete: {
+                                            goalToDelete = goal
+                                            showDeleteAlert = true
+                                        },
+                                        onToggleSubTask: { subTaskID in
+                                            if let gi = goals.firstIndex(where: { $0.id == goal.id }),
+                                               let si = goals[gi].subTasks.firstIndex(where: { $0.id == subTaskID }) {
+                                                goals[gi].subTasks[si].isDone.toggle()
+                                                GoalStorage.save(goals)
+                                            }
+                                        }
+                                    )
+                                }
                             }
-                            Button {
-                                goalToEdit = goal
-                            }
-                        label: {
-                                Label("Düzenle", systemImage: "pencil")
-                            }
-                            .tint(.blue)
-
-                        }
-
-                    }
-
-                }
-                .alert("Hedef Sil", isPresented: $showDeleteAlert) {
-
-                    Button("Sil", role: .destructive) {
-                        if let goal = goalToDelete {
-                            deleteGoal(goal: goal)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                            .padding(.bottom, 100)
                         }
                     }
-
-                    Button("İptal", role: .cancel) {}
-
-                } message: {
-
-                    Text("Bu hedefi silmek istediğinize emin misiniz?")
-
                 }
-
             }
-
             .navigationTitle("Hedefler")
             .toolbar {
-
-                Button {
-
-                    showingAddGoal = true
-
-                } label: {
-
+                Button { showingAddGoal = true } label: {
                     Image(systemName: "plus")
-
                 }
-
             }
-
             .sheet(isPresented: $showingAddGoal) {
-
-                AddGoalView { newGoal in
+                AddGoalView(defaultType: selectedType) { newGoal in
                     goals.append(newGoal)
+                    GoalStorage.save(goals)
                 }
-
             }
-
             .sheet(item: $goalToEdit) { goal in
-
                 EditGoalView(goal: goal) { updatedGoal in
-                    
                     if let index = goals.firstIndex(where: { $0.id == updatedGoal.id }) {
                         goals[index] = updatedGoal
+                        GoalStorage.save(goals)
                     }
-                    
                 }
-
             }
-            .onChange(of: goals) {
-                GoalStorage.save(goals)
+            .alert("Hedef Sil", isPresented: $showDeleteAlert) {
+                Button("Sil", role: .destructive) {
+                    if let goal = goalToDelete { deleteGoal(goal: goal) }
+                }
+                Button("İptal", role: .cancel) {}
+            } message: {
+                Text("Bu hedef ve tüm alt görevleri silinecek.")
             }
-
+            .onChange(of: goals) { GoalStorage.save(goals) }
         }
+    }
+}
 
+// MARK: - Hedef Kartı
+struct GoalCardView: View {
+    let goal: Goal
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    let onToggleSubTask: (UUID) -> Void
+
+    @State private var expanded = false
+
+    var accentColor: Color { Color(hex: goal.colorHex) ?? .purple }
+
+    var deadlineLabel: some View {
+        Group {
+            if goal.isOverdue {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill").font(.caption2)
+                    Text("Süresi geçti").font(.caption2.bold())
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(Color.red))
+            } else if goal.isUrgent {
+                HStack(spacing: 4) {
+                    Image(systemName: "flame.fill").font(.caption2)
+                    Text("\(goal.daysLeft) gün kaldı").font(.caption2.bold())
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(Color.orange))
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar").font(.caption2)
+                    Text("\(goal.daysLeft) gün kaldı").font(.caption2.bold())
+                }
+                .foregroundColor(accentColor)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(Capsule().fill(accentColor.opacity(0.12)))
+            }
+        }
     }
 
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+
+            // Başlık satırı
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(accentColor.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Text(goal.emoji).font(.title3)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(goal.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .strikethrough(goal.progress >= 1.0, color: .secondary)
+                        .foregroundColor(goal.progress >= 1.0 ? .secondary : .primary)
+
+                    Text(goal.deadline.formatted(date: .long, time: .omitted))
+                        .font(.caption).foregroundColor(.secondary)
+                }
+
+                Spacer()
+
+                Menu {
+                    Button { onEdit() } label: { Label("Düzenle", systemImage: "pencil") }
+                    Button(role: .destructive) { onDelete() } label: { Label("Sil", systemImage: "trash") }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(Circle())
+                }
+            }
+
+            // Deadline etiketi
+            deadlineLabel
+
+            // İlerleme çubuğu (alt görev varsa)
+            if goal.totalSubTasks > 0 {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Alt Görevler")
+                            .font(.caption.bold()).foregroundColor(.secondary)
+                        Spacer()
+                        Text("\(goal.completedSubTasks)/\(goal.totalSubTasks)")
+                            .font(.caption.bold()).foregroundColor(accentColor)
+                    }
+
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color(.tertiarySystemFill)).frame(height: 6)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(goal.progress >= 1.0 ? Color.green : accentColor)
+                                .frame(width: geo.size.width * goal.progress, height: 6)
+                                .animation(.spring(response: 0.4), value: goal.progress)
+                        }
+                    }
+                    .frame(height: 6)
+                }
+
+                // Alt görev listesi (aç/kapat)
+                Button {
+                    withAnimation(.spring(response: 0.3)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.caption2.bold())
+                        Text(expanded ? "Gizle" : "Alt görevleri göster")
+                            .font(.caption.bold())
+                    }
+                    .foregroundColor(accentColor)
+                }
+                .buttonStyle(.plain)
+
+                if expanded {
+                    VStack(spacing: 8) {
+                        ForEach(goal.subTasks) { sub in
+                            Button {
+                                onToggleSubTask(sub.id)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(sub.isDone ? accentColor : Color(.tertiarySystemFill))
+                                            .frame(width: 20, height: 20)
+                                        if sub.isDone {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    Text(sub.title)
+                                        .font(.subheadline)
+                                        .strikethrough(sub.isDone, color: .secondary)
+                                        .foregroundColor(sub.isDone ? .secondary : .primary)
+                                    Spacer()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.top, 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+
+            // Tamamlandı rozeti
+            if goal.progress >= 1.0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.seal.fill")
+                    Text("Tamamlandı!")
+                        .font(.caption.bold())
+                }
+                .foregroundColor(.green)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(
+                            goal.isOverdue ? Color.red.opacity(0.3) :
+                            goal.isUrgent ? Color.orange.opacity(0.3) : .clear,
+                            lineWidth: 1.5
+                        )
+                )
+        )
+    }
 }

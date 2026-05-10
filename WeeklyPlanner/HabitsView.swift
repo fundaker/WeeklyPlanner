@@ -154,7 +154,6 @@ struct HabitCardView: View {
     var completionCount: Int { habit.completionCount(year: year, month: month) }
     var completionPercent: Int { Int(Double(completionCount) / Double(daysInMonth) * 100) }
     var streak: Int { habit.currentStreak() }
-    var isBeforeCreation: Bool { habit.isBeforeCreation(year: year, month: month) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -227,67 +226,50 @@ struct HabitCardView: View {
             .frame(height: 6)
 
             // Gün kutucukları
-            if isBeforeCreation {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 6) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.title2)
-                            .foregroundColor(habit.color.opacity(0.5))
-                        Text("Bu alışkanlık bu ayda henüz yoktu")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 12)
-            } else {
-                LazyVGrid(columns: columns, spacing: 5) {
-                    ForEach(1...daysInMonth, id: \.self) { day in
-                        let date = dateFor(day: day)
-                        let done = habit.isCompleted(on: date)
-                        let isToday = Calendar.current.isDateInToday(date)
-                        let isFuture = date > Date()
-                        let isPast = !isToday && !isFuture
+            LazyVGrid(columns: columns, spacing: 5) {
+                ForEach(1...daysInMonth, id: \.self) { day in
+                    let date = dateFor(day: day)
+                    let done = habit.isCompleted(on: date)
+                    let isToday = Calendar.current.isDateInToday(date)
+                    let isFuture = date > Date()
 
-                        Button {
-                            if !isFuture {
-                                let key = habit.dateKey(for: date)
-                                withAnimation(.spring(response: 0.2)) {
-                                    if done {
-                                        habit.completedDates.removeAll { $0 == key }
-                                    } else {
-                                        habit.completedDates.append(key)
-                                    }
+                    Button {
+                        if !isFuture {
+                            let key = habit.dateKey(for: date)
+                            withAnimation(.spring(response: 0.2)) {
+                                if done {
+                                    habit.completedDates.removeAll { $0 == key }
+                                } else {
+                                    habit.completedDates.append(key)
                                 }
-                                onChange()
                             }
-                        } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 5)
-                                    .fill(done ? habit.color : Color(.tertiarySystemFill))
-                                    .frame(height: 30)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .strokeBorder(
-                                                isToday ? habit.color : .clear,
-                                                lineWidth: 2
-                                            )
-                                    )
-
-                                Text("\(day)")
-                                    .font(.system(size: 11, weight: done ? .bold : .regular))
-                                    .foregroundColor(
-                                        done ? .white :
-                                        isFuture ? Color(.quaternaryLabel) :
-                                        isToday ? habit.color :
-                                        .secondary
-                                    )
-                            }
+                            onChange()
                         }
-                        .buttonStyle(.plain)
-                        .disabled(isFuture)
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(done ? habit.color : Color(.tertiarySystemFill))
+                                .frame(height: 30)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .strokeBorder(
+                                            isToday ? habit.color : .clear,
+                                            lineWidth: 2
+                                        )
+                                )
+
+                            Text("\(day)")
+                                .font(.system(size: 11, weight: done ? .bold : .regular))
+                                .foregroundColor(
+                                    done ? .white :
+                                    isFuture ? Color(.quaternaryLabel) :
+                                    isToday ? habit.color :
+                                    .secondary
+                                )
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .disabled(isFuture)
                 }
             }
         }
@@ -303,3 +285,4 @@ struct HabitCardView: View {
         return Calendar.current.date(from: components) ?? Date()
     }
 }
+

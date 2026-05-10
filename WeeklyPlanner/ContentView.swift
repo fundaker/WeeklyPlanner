@@ -14,11 +14,13 @@ struct ContentView: View {
                     Text("Ana Sayfa")
                 }
 
-            TasksView(tasks: $tasks)
-                .tabItem {
-                    Image(systemName: "checklist")
-                    Text("Görevler")
-                }
+            NavigationStack {
+                TasksView(tasks: $tasks)
+            }
+            .tabItem {
+                Image(systemName: "checklist")
+                Text("Görevler")
+            }
 
             TodosView()
                 .tabItem {
