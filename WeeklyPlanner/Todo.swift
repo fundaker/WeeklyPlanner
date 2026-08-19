@@ -7,18 +7,28 @@ final class Todo {
     var title: String = ""
     var deadline: Date = Date()
     var category: TodoCategory = TodoCategory.general
+    var isCompleted: Bool = false
     var createdAt: Date = Date()
 
     init(
         title: String,
         deadline: Date,
         category: TodoCategory = .general,
+        isCompleted: Bool = false,
         createdAt: Date = Date()
     ) {
         self.title = title
         self.deadline = deadline
         self.category = category
+        self.isCompleted = isCompleted
         self.createdAt = createdAt
+    }
+
+    /// Tamamlanmamış ve son tarihi geçmiş.
+    var isOverdue: Bool {
+        guard !isCompleted else { return false }
+        let calendar = Calendar.current
+        return calendar.startOfDay(for: deadline) < calendar.startOfDay(for: Date())
     }
 }
 
