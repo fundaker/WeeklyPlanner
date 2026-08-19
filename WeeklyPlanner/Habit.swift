@@ -49,9 +49,17 @@ final class Habit {
     func currentStreak() -> Int {
         let calendar = Calendar.current
         let done = Set(completedDates)
-        var streak = 0
-        var date = Date()
+        let today = Date()
 
+        // Bugün henüz işaretlenmediyse seri dünden geriye sayılır.
+        // Aksi hâlde her gece yarısı seri sıfırlanmış görünürdü.
+        var date = today
+        if !done.contains(Habit.dateKey(for: today)) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else { return 0 }
+            date = yesterday
+        }
+
+        var streak = 0
         while done.contains(Habit.dateKey(for: date)) {
             streak += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: date) else { break }
