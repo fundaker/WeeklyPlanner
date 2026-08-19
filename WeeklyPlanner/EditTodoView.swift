@@ -6,22 +6,21 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct EditTodoView: View {
 
     @Environment(\.dismiss) var dismiss
 
-    @State var title: String
-    @State var deadline: Date
+    let todo: Todo
 
-    var todoID: UUID
-    var updateTodo: (Todo) -> Void
+    @State private var title: String
+    @State private var deadline: Date
 
-    init(todo: Todo, updateTodo: @escaping (Todo) -> Void) {
+    init(todo: Todo) {
+        self.todo = todo
         _title = State(initialValue: todo.title)
         _deadline = State(initialValue: todo.deadline)
-        todoID = todo.id
-        self.updateTodo = updateTodo
     }
 
     var body: some View {
@@ -48,13 +47,8 @@ struct EditTodoView: View {
 
                     Button("Kaydet") {
 
-                        let updatedTodo = Todo(
-                            id: todoID,
-                            title: title,
-                            deadline: deadline
-                        )
-
-                        updateTodo(updatedTodo)
+                        todo.title = title
+                        todo.deadline = deadline
                         dismiss()
 
                     }

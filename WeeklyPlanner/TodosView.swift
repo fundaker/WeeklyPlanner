@@ -1,19 +1,18 @@
 import SwiftUI
+import SwiftData
 
 struct TodosView: View {
+
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Todo.deadline) private var todos: [Todo]
 
     @State private var showingAddTodo = false
     @State private var todoToDelete: Todo?
     @State private var showDeleteAlert = false
     @State private var todoToEdit: Todo?
-    @State private var todos: [Todo] = TodoStorage.load()
 
     func deleteTodo(todo: Todo) {
-        todos.removeAll { $0.id == todo.id }
-    }
-
-    var sortedTodos: [Todo] {
-        todos.sorted { $0.deadline < $1.deadline }
+        context.delete(todo)
     }
 
     var body: some View {
@@ -33,7 +32,7 @@ struct TodosView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
                 } else {
-                    ForEach(sortedTodos) { todo in
+                    ForEach(todos) { todo in
                         HStack(spacing: 14) {
                             // Kategori ikonu
                             ZStack {
@@ -100,15 +99,11 @@ struct TodosView: View {
             }
             .sheet(isPresented: $showingAddTodo) {
                 AddTodoView { newTodo in
-                    todos.append(newTodo)
+                    context.insert(newTodo)
                 }
             }
             .sheet(item: $todoToEdit) { todo in
-                EditTodoView(todo: todo) { updatedTodo in
-                    if let index = todos.firstIndex(where: { $0.id == updatedTodo.id }) {
-                        todos[index] = updatedTodo
-                    }
-                }
+                EditTodoView(todo: todo)
             }
             .alert("Silmek istiyor musunuz?", isPresented: $showDeleteAlert) {
                 Button("Sil", role: .destructive) {
@@ -117,9 +112,6 @@ struct TodosView: View {
                     }
                 }
                 Button("İptal", role: .cancel) {}
-            }
-            .onChange(of: todos) {
-                TodoStorage.save(todos)
             }
         }
     }

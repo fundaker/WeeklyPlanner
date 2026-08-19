@@ -4,7 +4,7 @@ struct AddTaskView: View {
 
     let todayIndex: Int
     let days: [String]
-    var onAdd: (Task) -> Void
+    var onAdd: (WeeklyTask) -> Void
 
     @State private var title = ""
     @State private var selectedDay: String
@@ -14,7 +14,7 @@ struct AddTaskView: View {
 
     @Environment(\.dismiss) var dismiss
 
-    init(todayIndex: Int, days: [String], onAdd: @escaping (Task) -> Void) {
+    init(todayIndex: Int, days: [String], onAdd: @escaping (WeeklyTask) -> Void) {
         self.todayIndex = todayIndex
         self.days = days
         self.onAdd = onAdd
@@ -211,7 +211,7 @@ struct AddTaskView: View {
                         // Kaydet
                         Button {
                             if isValid {
-                                let newTask = Task(
+                                let newTask = WeeklyTask(
                                     title: title.trimmingCharacters(in: .whitespaces),
                                     day: selectedDay,
                                     totalHours: hours,

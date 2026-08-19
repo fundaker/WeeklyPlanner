@@ -3,7 +3,7 @@ import SwiftUI
 struct AddGoalView: View {
     @Environment(\.dismiss) var dismiss
 
-    var addGoal: (Goal) -> Void
+    var onSave: (GoalDraft) -> Void
 
     @State private var title = ""
     @State private var deadline = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
@@ -11,11 +11,11 @@ struct AddGoalView: View {
     @State private var selectedEmoji = "🎯"
     @State private var selectedColorHex = "7B5EA7"
     @State private var subTaskText = ""
-    @State private var subTasks: [SubTask] = []
+    @State private var subTasks: [SubTaskDraft] = []
     @State private var titleShake = false
 
-    init(defaultType: GoalType = .midTerm, addGoal: @escaping (Goal) -> Void) {
-        self.addGoal = addGoal
+    init(defaultType: GoalType = .midTerm, onSave: @escaping (GoalDraft) -> Void) {
+        self.onSave = onSave
         _type = State(initialValue: defaultType)
     }
 
@@ -178,7 +178,7 @@ struct AddGoalView: View {
                                     Button {
                                         let trimmed = subTaskText.trimmingCharacters(in: .whitespaces)
                                         if !trimmed.isEmpty {
-                                            subTasks.append(SubTask(title: trimmed))
+                                            subTasks.append(SubTaskDraft(title: trimmed))
                                             subTaskText = ""
                                         }
                                     } label: {
@@ -195,15 +195,16 @@ struct AddGoalView: View {
                         // Kaydet
                         Button {
                             if isValid {
-                                let newGoal = Goal(
-                                    title: title.trimmingCharacters(in: .whitespaces),
-                                    deadline: deadline,
-                                    type: type,
-                                    emoji: selectedEmoji,
-                                    colorHex: selectedColorHex,
-                                    subTasks: subTasks
+                                onSave(
+                                    GoalDraft(
+                                        title: title.trimmingCharacters(in: .whitespaces),
+                                        deadline: deadline,
+                                        type: type,
+                                        emoji: selectedEmoji,
+                                        colorHex: selectedColorHex,
+                                        subTasks: subTasks
+                                    )
                                 )
-                                addGoal(newGoal)
                                 dismiss()
                             } else {
                                 titleShake = true

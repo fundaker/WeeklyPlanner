@@ -4,7 +4,8 @@ struct AddHabitView: View {
     @Environment(\.dismiss) var dismiss
 
     var habitToEdit: Habit? = nil
-    var onSave: (Habit) -> Void
+    /// (başlık, emoji, renk hex) — modeli çağıran ekran oluşturur ya da günceller.
+    var onSave: (String, String, String) -> Void
 
     @State private var title = ""
     @State private var emoji = "⭐"
@@ -125,15 +126,11 @@ struct AddHabitView: View {
                         // Kaydet
                         Button {
                             if isValid {
-                                var habit = habitToEdit ?? Habit(
-                                    title: "",
-                                    emoji: "",
-                                    colorHex: ""
+                                onSave(
+                                    title.trimmingCharacters(in: .whitespaces),
+                                    emoji,
+                                    selectedColor.toHex()
                                 )
-                                habit.title = title.trimmingCharacters(in: .whitespaces)
-                                habit.emoji = emoji
-                                habit.colorHex = selectedColor.toHex()
-                                onSave(habit)
                                 dismiss()
                             } else {
                                 titleShake = true

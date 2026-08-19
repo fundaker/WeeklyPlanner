@@ -1,7 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct HabitsView: View {
-    @State private var habits: [Habit] = HabitStorage.load()
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Habit.createdDate) private var habits: [Habit]
+
     @State private var showingAddHabit = false
     @State private var habitToEdit: Habit? = nil
     @State private var habitToDelete: Habit? = nil
@@ -83,9 +86,9 @@ struct HabitsView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 60)
                         } else {
-                            ForEach($habits) { $habit in
+                            ForEach(habits) { habit in
                                 HabitCardView(
-                                    habit: $habit,
+                                    habit: habit,
                                     daysInMonth: daysInMonth,
                                     year: currentYear,
                                     month: currentMonth,
@@ -93,8 +96,7 @@ struct HabitsView: View {
                                     onDelete: {
                                         habitToDelete = habit
                                         showDeleteAlert = true
-                                    },
-                                    onChange: { HabitStorage.save(habits) }
+                                    }
                                 )
                                 .padding(.horizontal, 16)
                             }
@@ -112,24 +114,21 @@ struct HabitsView: View {
                 }
             }
             .sheet(isPresented: $showingAddHabit) {
-                AddHabitView { newHabit in
-                    habits.append(newHabit)
-                    HabitStorage.save(habits)
+                AddHabitView { title, emoji, colorHex in
+                    context.insert(Habit(title: title, emoji: emoji, colorHex: colorHex))
                 }
             }
             .sheet(item: $habitToEdit) { habit in
-                AddHabitView(habitToEdit: habit) { updated in
-                    if let i = habits.firstIndex(where: { $0.id == updated.id }) {
-                        habits[i] = updated
-                        HabitStorage.save(habits)
-                    }
+                AddHabitView(habitToEdit: habit) { title, emoji, colorHex in
+                    habit.title = title
+                    habit.emoji = emoji
+                    habit.colorHex = colorHex
                 }
             }
             .alert("Alışkanlığı Sil", isPresented: $showDeleteAlert) {
                 Button("Sil", role: .destructive) {
                     if let h = habitToDelete {
-                        habits.removeAll { $0.id == h.id }
-                        HabitStorage.save(habits)
+                        context.delete(h)
                     }
                 }
                 Button("İptal", role: .cancel) {}
@@ -141,13 +140,12 @@ struct HabitsView: View {
 }
 
 struct HabitCardView: View {
-    @Binding var habit: Habit
+    let habit: Habit
     let daysInMonth: Int
     let year: Int
     let month: Int
     let onEdit: () -> Void
     let onDelete: () -> Void
-    let onChange: () -> Void
 
     let columns = Array(repeating: GridItem(.flexible(), spacing: 5), count: 7)
 
@@ -243,7 +241,6 @@ struct HabitCardView: View {
                                     habit.completedDates.append(key)
                                 }
                             }
-                            onChange()
                         }
                     } label: {
                         ZStack {

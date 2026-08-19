@@ -4,14 +4,14 @@ struct EditGoalView: View {
     @Environment(\.dismiss) var dismiss
 
     let goal: Goal
-    var onSave: (Goal) -> Void
+    var onSave: (GoalDraft) -> Void
 
     @State private var title = ""
     @State private var deadline = Date()
     @State private var type: GoalType = .midTerm
     @State private var selectedEmoji = "🎯"
     @State private var selectedColorHex = "7B5EA7"
-    @State private var subTasks: [SubTask] = []
+    @State private var subTasks: [SubTaskDraft] = []
     @State private var subTaskText = ""
     @State private var titleShake = false
 
@@ -182,7 +182,7 @@ struct EditGoalView: View {
                                     Button {
                                         let trimmed = subTaskText.trimmingCharacters(in: .whitespaces)
                                         if !trimmed.isEmpty {
-                                            subTasks.append(SubTask(title: trimmed))
+                                            subTasks.append(SubTaskDraft(title: trimmed))
                                             subTaskText = ""
                                         }
                                     } label: {
@@ -199,14 +199,16 @@ struct EditGoalView: View {
                         // Kaydet
                         Button {
                             if isValid {
-                                var updated = goal
-                                updated.title = title.trimmingCharacters(in: .whitespaces)
-                                updated.deadline = deadline
-                                updated.type = type
-                                updated.emoji = selectedEmoji
-                                updated.colorHex = selectedColorHex
-                                updated.subTasks = subTasks
-                                onSave(updated)
+                                onSave(
+                                    GoalDraft(
+                                        title: title.trimmingCharacters(in: .whitespaces),
+                                        deadline: deadline,
+                                        type: type,
+                                        emoji: selectedEmoji,
+                                        colorHex: selectedColorHex,
+                                        subTasks: subTasks
+                                    )
+                                )
                                 dismiss()
                             } else {
                                 titleShake = true
@@ -240,7 +242,9 @@ struct EditGoalView: View {
                 type = goal.type
                 selectedEmoji = goal.emoji
                 selectedColorHex = goal.colorHex
-                subTasks = goal.subTasks
+                subTasks = goal.orderedSubTasks.map {
+                    SubTaskDraft(title: $0.title, isDone: $0.isDone)
+                }
             }
         }
     }

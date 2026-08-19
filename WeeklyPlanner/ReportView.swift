@@ -1,11 +1,12 @@
 import SwiftUI
+import SwiftData
 import Charts
 
 struct ReportView: View {
-    var tasks: [Task]
+    @Query(sort: \WeeklyTask.createdAt) private var tasks: [WeeklyTask]
+    @Query(sort: \Habit.createdDate) private var habits: [Habit]
+    @Query(sort: \Goal.deadline) private var goals: [Goal]
 
-    @State private var habits: [Habit] = HabitStorage.load()
-    @State private var goals: [Goal] = GoalStorage.load()
     @State private var selectedReportType: ReportType = .weekly
     @State private var selectedWeekOffset = 0
     @State private var selectedMonthOffset = 0
@@ -64,10 +65,12 @@ struct ReportView: View {
     func habitCount(for habit: Habit) -> Int {
         if selectedReportType == .weekly {
             let range = weekRange(offset: selectedWeekOffset)
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd"
             return habit.completedDates.filter { key in
-                let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"
-                if let d = f.date(from: key) { return d >= range.start && d <= range.end }
-                return false
+                guard let d = f.date(from: key) else { return false }
+                return d >= range.start && d <= range.end
             }.count
         } else {
             let cal = Calendar.current

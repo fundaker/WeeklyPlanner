@@ -1,7 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct GoalsView: View {
-    @State private var goals: [Goal] = GoalStorage.load()
+    @Environment(\.modelContext) private var context
+    @Query(sort: \Goal.deadline) private var goals: [Goal]
+
     @State private var selectedType: GoalType = .midTerm
     @State private var showingAddGoal = false
     @State private var goalToDelete: Goal?
@@ -9,14 +12,11 @@ struct GoalsView: View {
     @State private var goalToEdit: Goal?
 
     func deleteGoal(goal: Goal) {
-        goals.removeAll { $0.id == goal.id }
-        GoalStorage.save(goals)
+        context.delete(goal)
     }
 
     var filteredGoals: [Goal] {
-        goals
-            .filter { $0.type == selectedType }
-            .sorted { $0.deadline < $1.deadline }
+        goals.filter { $0.type == selectedType }
     }
 
     var body: some View {
@@ -56,12 +56,8 @@ struct GoalsView: View {
                                             goalToDelete = goal
                                             showDeleteAlert = true
                                         },
-                                        onToggleSubTask: { subTaskID in
-                                            if let gi = goals.firstIndex(where: { $0.id == goal.id }),
-                                               let si = goals[gi].subTasks.firstIndex(where: { $0.id == subTaskID }) {
-                                                goals[gi].subTasks[si].isDone.toggle()
-                                                GoalStorage.save(goals)
-                                            }
+                                        onToggleSubTask: { subTask in
+                                            subTask.isDone.toggle()
                                         }
                                     )
                                 }
@@ -80,17 +76,13 @@ struct GoalsView: View {
                 }
             }
             .sheet(isPresented: $showingAddGoal) {
-                AddGoalView(defaultType: selectedType) { newGoal in
-                    goals.append(newGoal)
-                    GoalStorage.save(goals)
+                AddGoalView(defaultType: selectedType) { draft in
+                    context.insert(Goal(draft: draft))
                 }
             }
             .sheet(item: $goalToEdit) { goal in
-                EditGoalView(goal: goal) { updatedGoal in
-                    if let index = goals.firstIndex(where: { $0.id == updatedGoal.id }) {
-                        goals[index] = updatedGoal
-                        GoalStorage.save(goals)
-                    }
+                EditGoalView(goal: goal) { draft in
+                    goal.apply(draft, in: context)
                 }
             }
             .alert("Hedef Sil", isPresented: $showDeleteAlert) {
@@ -101,7 +93,6 @@ struct GoalsView: View {
             } message: {
                 Text("Bu hedef ve tüm alt görevleri silinecek.")
             }
-            .onChange(of: goals) { GoalStorage.save(goals) }
         }
     }
 }
@@ -111,7 +102,7 @@ struct GoalCardView: View {
     let goal: Goal
     let onEdit: () -> Void
     let onDelete: () -> Void
-    let onToggleSubTask: (UUID) -> Void
+    let onToggleSubTask: (SubTask) -> Void
 
     @State private var expanded = false
 
@@ -227,9 +218,9 @@ struct GoalCardView: View {
 
                 if expanded {
                     VStack(spacing: 8) {
-                        ForEach(goal.subTasks) { sub in
+                        ForEach(goal.orderedSubTasks) { sub in
                             Button {
-                                onToggleSubTask(sub.id)
+                                onToggleSubTask(sub)
                             } label: {
                                 HStack(spacing: 10) {
                                     ZStack {

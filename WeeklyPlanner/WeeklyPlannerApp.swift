@@ -6,14 +6,25 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct WeeklyPlannerApp: App {
 
+    let container: ModelContainer
+
+    init() {
+        let container = Persistence.makeContainer()
+        MainActor.assumeIsolated {
+            LegacyMigration.run(context: container.mainContext)
+        }
+        self.container = container
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(container)
     }
 }

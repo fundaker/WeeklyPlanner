@@ -1,21 +1,20 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
-    
-    @State private var tasks: [Task] = TaskStorage.load()
-    
+
     var body: some View {
-        
+
         TabView {
-            
-            HomeView(tasks: tasks)
+
+            HomeView()
                 .tabItem {
                     Image(systemName: "house")
                     Text("Ana Sayfa")
                 }
 
             NavigationStack {
-                TasksView(tasks: $tasks)
+                TasksView()
             }
             .tabItem {
                 Image(systemName: "checklist")
@@ -38,19 +37,16 @@ struct ContentView: View {
                     Label("Alışkanlıklar", systemImage: "checkmark.seal")
                 }
 
-            ReportView(tasks: tasks)
-                .id(tasks.map { "\($0.id)\($0.completedHours)\($0.totalHours)" }.joined())
+            ReportView()
                 .tabItem {
                     Image(systemName: "chart.pie")
                     Text("Raporlar")
                 }
-        }
-        .onChange(of: tasks) {
-            TaskStorage.save(tasks)
         }
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(Persistence.previewContainer)
 }

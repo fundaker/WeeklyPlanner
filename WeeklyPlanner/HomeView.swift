@@ -1,8 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct HomeView: View {
 
-    var tasks: [Task]
+    @Query(sort: \WeeklyTask.createdAt) private var tasks: [WeeklyTask]
 
     var today: String {
         let formatter = DateFormatter()
@@ -11,7 +12,7 @@ struct HomeView: View {
         return formatter.string(from: Date())
     }
 
-    var todayTasks: [Task] {
+    var todayTasks: [WeeklyTask] {
         tasks.filter { $0.day == today }
     }
 

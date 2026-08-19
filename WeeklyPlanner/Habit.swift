@@ -1,13 +1,29 @@
 import Foundation
+import SwiftData
 import SwiftUI
 
-struct Habit: Identifiable, Codable, Equatable {
-    var id = UUID()
-    var title: String
-    var emoji: String
-    var colorHex: String
-    var completedDates: [String] = [] // "yyyy-MM-dd" formatında
+@Model
+final class Habit {
+    var title: String = ""
+    var emoji: String = "⭐"
+    var colorHex: String = ""
+    /// "yyyy-MM-dd" formatında tamamlanan günler
+    var completedDates: [String] = []
     var createdDate: Date = Date()
+
+    init(
+        title: String,
+        emoji: String,
+        colorHex: String,
+        completedDates: [String] = [],
+        createdDate: Date = Date()
+    ) {
+        self.title = title
+        self.emoji = emoji
+        self.colorHex = colorHex
+        self.completedDates = completedDates
+        self.createdDate = createdDate
+    }
 
     // Belirtilen yıl/ay, habit'in başladığı aydan önce mi?
     func isBeforeCreation(year: Int, month: Int) -> Bool {
@@ -19,7 +35,7 @@ struct Habit: Identifiable, Codable, Equatable {
 
     // Belirli bir tarihin tamamlanıp tamamlanmadığı
     func isCompleted(on date: Date) -> Bool {
-        completedDates.contains(dateKey(for: date))
+        completedDates.contains(Habit.dateKey(for: date))
     }
 
     // Belirli bir aydaki tamamlanma sayısı
@@ -32,25 +48,29 @@ struct Habit: Identifiable, Codable, Equatable {
     // Güncel streak
     func currentStreak() -> Int {
         let calendar = Calendar.current
+        let done = Set(completedDates)
         var streak = 0
         var date = Date()
 
-        while true {
-            let key = dateKey(for: date)
-            if completedDates.contains(key) {
-                streak += 1
-                date = calendar.date(byAdding: .day, value: -1, to: date)!
-            } else {
-                break
-            }
+        while done.contains(Habit.dateKey(for: date)) {
+            streak += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: date) else { break }
+            date = previous
         }
         return streak
     }
 
-    func dateKey(for date: Date) -> String {
+    func dateKey(for date: Date) -> String { Habit.dateKey(for: date) }
+
+    private static let keyFormatter: DateFormatter = {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    static func dateKey(for date: Date) -> String {
+        keyFormatter.string(from: date)
     }
 
     var color: Color {

@@ -1,15 +1,17 @@
 import SwiftUI
+import SwiftData
 
 struct TasksView: View {
-    @Binding var tasks: [Task]
+    @Environment(\.modelContext) private var context
+    @Query(sort: \WeeklyTask.createdAt) private var tasks: [WeeklyTask]
 
     @State private var showingAddTask = false
     @State private var alertMessage = ""
     @State private var showConfetti = false
-    @State private var taskToDelete: Task?
+    @State private var taskToDelete: WeeklyTask?
     @State private var activeAlert: AlertType?
-    @State private var editingTaskIndex: Int?
-    @State private var showPostponeSheet: Task? = nil
+    @State private var editingTaskID: PersistentIdentifier?
+    @State private var showPostponeSheet: WeeklyTask? = nil
 
     let days = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"]
 
@@ -40,11 +42,12 @@ struct TasksView: View {
     func allDone(for day: String) -> Bool {
         let dayTasks = tasks.filter { $0.day == day }
         guard !dayTasks.isEmpty else { return false }
-        return dayTasks.allSatisfy { $0.completedHours == $0.totalHours }
+        return dayTasks.allSatisfy { $0.isCompleted }
     }
 
-    func deleteTask(task: Task) {
-        tasks.removeAll { $0.id == task.id }
+    func deleteTask(task: WeeklyTask) {
+        if editingTaskID == task.persistentModelID { editingTaskID = nil }
+        context.delete(task)
     }
 
     func triggerHaptic() {
@@ -77,8 +80,7 @@ struct TasksView: View {
                                 isPast: past,
                                 isDone: allDone(for: day),
                                 dayTasks: dayTasks,
-                                tasks: $tasks,
-                                editingTaskIndex: $editingTaskIndex,
+                                editingTaskID: $editingTaskID,
                                 taskToDelete: $taskToDelete,
                                 activeAlert: $activeAlert,
                                 alertMessage: $alertMessage,
@@ -104,7 +106,7 @@ struct TasksView: View {
         }
         .sheet(isPresented: $showingAddTask) {
             AddTaskView(todayIndex: todayIndex, days: days) { newTask in
-                tasks.append(newTask)
+                context.insert(newTask)
             }
         }
         .sheet(item: $showPostponeSheet) { task in
@@ -112,9 +114,7 @@ struct TasksView: View {
                 task: task,
                 futureDays: futureDays(from: task.day)
             ) { newDay in
-                if let idx = tasks.firstIndex(where: { $0.id == task.id }) {
-                    tasks[idx].day = newDay
-                }
+                task.day = newDay
             }
         }
         .overlay {
@@ -150,14 +150,13 @@ struct DaySectionView: View {
     let isToday: Bool
     let isPast: Bool
     let isDone: Bool
-    let dayTasks: [Task]
-    @Binding var tasks: [Task]
-    @Binding var editingTaskIndex: Int?
-    @Binding var taskToDelete: Task?
+    let dayTasks: [WeeklyTask]
+    @Binding var editingTaskID: PersistentIdentifier?
+    @Binding var taskToDelete: WeeklyTask?
     @Binding var activeAlert: AlertType?
     @Binding var alertMessage: String
     @Binding var showConfetti: Bool
-    @Binding var showPostponeSheet: Task?
+    @Binding var showPostponeSheet: WeeklyTask?
     let days: [String]
     let futureDays: [String]
     let onTriggerHaptic: () -> Void
@@ -210,24 +209,20 @@ struct DaySectionView: View {
                 .background(RoundedRectangle(cornerRadius: 14).fill(Color(.secondarySystemGroupedBackground)))
             } else {
                 ForEach(dayTasks) { task in
-                    if let index = tasks.firstIndex(where: { $0.id == task.id }) {
-                        TaskCardView(
-                            task: task,
-                            index: index,
-                            tasks: $tasks,
-                            editingTaskIndex: $editingTaskIndex,
-                            taskToDelete: $taskToDelete,
-                            activeAlert: $activeAlert,
-                            alertMessage: $alertMessage,
-                            showConfetti: $showConfetti,
-                            showPostponeSheet: $showPostponeSheet,
-                            isPast: isPast,
-                            isToday: isToday,
-                            canPostpone: !futureDays.isEmpty,
-                            days: days,
-                            onTriggerHaptic: onTriggerHaptic
-                        )
-                    }
+                    TaskCardView(
+                        task: task,
+                        editingTaskID: $editingTaskID,
+                        taskToDelete: $taskToDelete,
+                        activeAlert: $activeAlert,
+                        alertMessage: $alertMessage,
+                        showConfetti: $showConfetti,
+                        showPostponeSheet: $showPostponeSheet,
+                        isPast: isPast,
+                        isToday: isToday,
+                        canPostpone: !futureDays.isEmpty,
+                        days: days,
+                        onTriggerHaptic: onTriggerHaptic
+                    )
                 }
             }
         }
@@ -236,26 +231,25 @@ struct DaySectionView: View {
 
 // MARK: - Görev Kartı
 struct TaskCardView: View {
-    let task: Task
-    let index: Int
-    @Binding var tasks: [Task]
-    @Binding var editingTaskIndex: Int?
-    @Binding var taskToDelete: Task?
+    @Bindable var task: WeeklyTask
+    @Binding var editingTaskID: PersistentIdentifier?
+    @Binding var taskToDelete: WeeklyTask?
     @Binding var activeAlert: AlertType?
     @Binding var alertMessage: String
     @Binding var showConfetti: Bool
-    @Binding var showPostponeSheet: Task?
+    @Binding var showPostponeSheet: WeeklyTask?
     let isPast: Bool
     let isToday: Bool
     let canPostpone: Bool
     let days: [String]
     let onTriggerHaptic: () -> Void
 
-    var isCompleted: Bool { tasks[index].completedHours == tasks[index].totalHours }
+    var isCompleted: Bool { task.isCompleted }
     var isOverdue: Bool { isPast && !isCompleted }
+    var isEditing: Bool { editingTaskID == task.persistentModelID }
 
     var priorityColor: Color {
-        switch tasks[index].priority {
+        switch task.priority {
         case .low:    return Color(red: 0.27, green: 0.73, blue: 0.53)
         case .medium: return Color(red: 0.98, green: 0.72, blue: 0.20)
         case .high:   return Color(red: 0.96, green: 0.35, blue: 0.35)
@@ -273,7 +267,7 @@ struct TaskCardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     // Başlık + uyarı
                     HStack {
-                        Text(tasks[index].title)
+                        Text(task.title)
                             .font(.system(size: 15, weight: .semibold))
                             .strikethrough(isCompleted, color: .secondary)
                             .foregroundColor(isCompleted ? .secondary : .primary)
@@ -301,34 +295,34 @@ struct TaskCardView: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(isOverdue ? Color.red : priorityColor)
                                 .frame(
-                                    width: geo.size.width * CGFloat(tasks[index].completedHours) / CGFloat(max(tasks[index].totalHours, 1)),
+                                    width: geo.size.width * CGFloat(task.completedHours) / CGFloat(max(task.totalHours, 1)),
                                     height: 6
                                 )
-                                .animation(.spring(response: 0.3), value: tasks[index].completedHours)
+                                .animation(.spring(response: 0.3), value: task.completedHours)
                         }
                     }
                     .frame(height: 6)
 
                     // Saat kutucukları
                     HStack(spacing: 6) {
-                        ForEach(0..<tasks[index].totalHours, id: \.self) { i in
-                            let done = i < tasks[index].completedHours
+                        ForEach(0..<task.totalHours, id: \.self) { i in
+                            let done = i < task.completedHours
                             Button {
-                                if i < tasks[index].completedHours {
-                                    tasks[index].completedHours -= 1
-                                    if !tasks[index].completionDates.isEmpty {
-                                        tasks[index].completionDates.removeLast()
+                                if i < task.completedHours {
+                                    task.completedHours -= 1
+                                    if !task.completionDates.isEmpty {
+                                        task.completionDates.removeLast()
                                     }
-                                } else if tasks[index].completedHours < tasks[index].totalHours {
-                                    tasks[index].completedHours += 1
-                                    tasks[index].completionDates.append(Date())
-                                    if tasks[index].completedHours == tasks[index].totalHours {
-                                        alertMessage = "Harika!\n\n\(tasks[index].title) tamamlandı! 🎉"
+                                } else if task.completedHours < task.totalHours {
+                                    task.completedHours += 1
+                                    task.completionDates.append(Date())
+                                    if task.completedHours == task.totalHours {
+                                        alertMessage = "Harika!\n\n\(task.title) tamamlandı! 🎉"
                                         activeAlert = .success
                                         showConfetti = true
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { showConfetti = false }
                                     } else {
-                                        alertMessage = "Tebrikler!\n\n\(tasks[index].completedHours) saat tamamlandı."
+                                        alertMessage = "Tebrikler!\n\n\(task.completedHours) saat tamamlandı."
                                         activeAlert = .success
                                     }
                                 }
@@ -349,7 +343,7 @@ struct TaskCardView: View {
                         }
 
                         Spacer()
-                        Text("\(tasks[index].completedHours)/\(tasks[index].totalHours) saat")
+                        Text("\(task.completedHours)/\(task.totalHours) saat")
                             .font(.caption2).foregroundColor(.secondary)
                     }
                 }
@@ -358,7 +352,7 @@ struct TaskCardView: View {
             // Aksiyon butonları
             HStack(spacing: 8) {
                 Button {
-                    withAnimation { editingTaskIndex = editingTaskIndex == index ? nil : index }
+                    withAnimation { editingTaskID = isEditing ? nil : task.persistentModelID }
                 } label: {
                     Label("Düzenle", systemImage: "pencil")
                         .font(.caption.bold()).foregroundColor(.blue)
@@ -382,7 +376,7 @@ struct TaskCardView: View {
                 Spacer()
 
                 Button {
-                    editingTaskIndex = nil
+                    editingTaskID = nil
                     taskToDelete = task
                     activeAlert = .delete
                 } label: {
@@ -395,21 +389,21 @@ struct TaskCardView: View {
             }
 
             // Düzenleme paneli
-            if editingTaskIndex == index {
+            if isEditing {
                 VStack(spacing: 10) {
                     Divider()
-                    TextField("Görev adı", text: $tasks[index].title).textFieldStyle(.roundedBorder)
-                    Stepper("Saat: \(tasks[index].totalHours)", value: $tasks[index].totalHours, in: 1...12)
-                        .onChange(of: tasks[index].totalHours) {
-                            if tasks[index].completedHours > tasks[index].totalHours {
-                                tasks[index].completedHours = tasks[index].totalHours
+                    TextField("Görev adı", text: $task.title).textFieldStyle(.roundedBorder)
+                    Stepper("Saat: \(task.totalHours)", value: $task.totalHours, in: 1...12)
+                        .onChange(of: task.totalHours) {
+                            if task.completedHours > task.totalHours {
+                                task.completedHours = task.totalHours
                             }
                         }
-                    Picker("Gün", selection: $tasks[index].day) {
+                    Picker("Gün", selection: $task.day) {
                         ForEach(days, id: \.self) { d in Text(d).tag(d) }
                     }
                     .pickerStyle(.menu)
-                    Button("Kapat") { withAnimation { editingTaskIndex = nil } }
+                    Button("Kapat") { withAnimation { editingTaskID = nil } }
                         .font(.caption).foregroundColor(.blue)
                 }
                 .padding(.top, 4)
@@ -429,7 +423,7 @@ struct TaskCardView: View {
 
 // MARK: - Erteleme Sheet
 struct PostponeSheetView: View {
-    let task: Task
+    let task: WeeklyTask
     let futureDays: [String]
     let onPostpone: (String) -> Void
     @Environment(\.dismiss) var dismiss
