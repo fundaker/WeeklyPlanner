@@ -11,6 +11,8 @@ import SwiftData
 @main
 struct WeeklyPlannerApp: App {
 
+    @Environment(\.scenePhase) private var scenePhase
+
     let container: ModelContainer
 
     init() {
@@ -24,7 +26,17 @@ struct WeeklyPlannerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task {
+                    await Reminders.requestAuthorization()
+                    await Reminders.refresh(context: container.mainContext)
+                }
         }
         .modelContainer(container)
+        .onChange(of: scenePhase) { _, phase in
+            // Öne gelirken: izin Ayarlar'dan açılmış ya da gün dönmüş olabilir.
+            // Arkaya geçerken: oturum içindeki değişiklikler yansısın.
+            guard phase == .active || phase == .background else { return }
+            Task { await Reminders.refresh(context: container.mainContext) }
+        }
     }
 }
