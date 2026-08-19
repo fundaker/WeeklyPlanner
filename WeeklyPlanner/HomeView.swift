@@ -102,6 +102,16 @@ struct HomeView: View {
 
             }
             .navigationTitle("Ana Sayfa")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        ReportView()
+                    } label: {
+                        Image(systemName: "chart.pie")
+                    }
+                    .accessibilityLabel("Raporlar")
+                }
+            }
 
         }
 

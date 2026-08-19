@@ -102,7 +102,6 @@ struct HabitsView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 100)
                 }
             }
             .navigationTitle("Alışkanlıklar")

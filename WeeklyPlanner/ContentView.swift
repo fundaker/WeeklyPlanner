@@ -36,12 +36,6 @@ struct ContentView: View {
                 .tabItem {
                     Label("Alışkanlıklar", systemImage: "checkmark.seal")
                 }
-
-            ReportView()
-                .tabItem {
-                    Image(systemName: "chart.pie")
-                    Text("Raporlar")
-                }
         }
     }
 }

@@ -109,7 +109,6 @@ struct ReportView: View {
                     habitSectionView
                     goalSectionView
                 }
-                .padding(.bottom, 100)
             }
         }
         .navigationTitle("Raporlar")
